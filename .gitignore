@@ -1,0 +1,10 @@
+.streamlit/secrets.toml
+*.db
+__pycache__/
+*.pyc
+.env
+.env.local
+node_modules/
+.next/
+next-env.d.ts
+*.tsbuildinfo
