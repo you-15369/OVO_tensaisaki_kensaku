@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
+// 既定は同一オリジン（next.config.mjs の rewrites で FastAPI に中継）
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
 
 type SourceContext = {
   origin: string;
@@ -129,7 +130,7 @@ export default function Home() {
     } catch (e) {
       setError(
         e instanceof TypeError
-          ? `バックエンド (${API_BASE}) に接続できません。FastAPI が起動しているか確認してください。`
+          ? `バックエンド (${API_BASE || "/api"}) に接続できません。FastAPI が起動しているか確認してください。`
           : e instanceof Error
             ? e.message
             : String(e),

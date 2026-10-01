@@ -44,7 +44,21 @@ npm run dev
 ```
 
 ブラウザで http://localhost:3000 を開きます。
-バックエンドのURLを変える場合は `frontend/.env.local` に `NEXT_PUBLIC_API_BASE=http://...` を設定してください。
+ブラウザは同一オリジンの `/api/*` を呼び、Next.js が `API_PROXY_TARGET`（既定 `http://localhost:8000`）の FastAPI に中継します。
+
+### 3. Basic認証（社内限定公開）
+
+共通ID/パスワードで画面とAPIを保護します。**フロントとバックエンドに同じ値**を設定してください。
+
+| 設定先 | 変数 |
+| --- | --- |
+| `frontend/.env.local`（またはホスティング先の環境変数） | `BASIC_AUTH_USER`, `BASIC_AUTH_PASSWORD`, `API_PROXY_TARGET` |
+| `backend/.env`（同上） | `BASIC_AUTH_USER`, `BASIC_AUTH_PASSWORD` |
+
+- フロント: 本番（`next start`）で未設定だと 503 を返します（設定漏れで公開されるのを防止）。`npm run dev` では未設定なら認証なし。
+- バックエンド: 未設定なら認証なし。`/api/health` のみ認証不要（ヘルスチェック用）。
+- ブラウザで入力したID/パスワードは Next.js 経由でそのままバックエンドに転送されます。
+- 必ず HTTPS で公開してください（Basic認証は平文同等のため）。
 
 ## Brave Search APIキーの取得
 

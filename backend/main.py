@@ -1,9 +1,12 @@
+import base64
+import binascii
 import os
 import re
+import secrets
 import threading
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -21,6 +24,43 @@ APP_VERSION = "3.0.0"
 
 app = FastAPI(title="OVO / b-dot 転載URL抽出 API", version=APP_VERSION)
 
+# 社内向け Basic 認証（フロントと同じ共通ID/パスワード）。未設定時は認証なし（ローカル開発用）
+BASIC_AUTH_USER = os.environ.get("BASIC_AUTH_USER", "")
+BASIC_AUTH_PASSWORD = os.environ.get("BASIC_AUTH_PASSWORD", "")
+AUTH_EXEMPT_PATHS = {"/api/health"}  # ホスティング先のヘルスチェック用
+
+
+def _check_basic_auth(header: str) -> bool:
+    scheme, _, encoded = header.partition(" ")
+    if scheme.lower() != "basic" or not encoded:
+        return False
+    try:
+        user, sep, password = base64.b64decode(encoded).decode("utf-8").partition(":")
+    except (binascii.Error, UnicodeDecodeError):
+        return False
+    user_ok = secrets.compare_digest(user.encode(), BASIC_AUTH_USER.encode())
+    pass_ok = secrets.compare_digest(password.encode(), BASIC_AUTH_PASSWORD.encode())
+    return bool(sep) and user_ok and pass_ok
+
+
+@app.middleware("http")
+async def basic_auth(request: Request, call_next):
+    if (
+        BASIC_AUTH_USER
+        and BASIC_AUTH_PASSWORD
+        and request.method != "OPTIONS"
+        and request.url.path not in AUTH_EXEMPT_PATHS
+        and not _check_basic_auth(request.headers.get("authorization", ""))
+    ):
+        return Response(
+            "認証が必要です。",
+            status_code=401,
+            headers={"WWW-Authenticate": 'Basic realm="tensai", charset="UTF-8"'},
+        )
+    return await call_next(request)
+
+
+# CORS は最後に追加して最外層にする（401 応答にも CORS ヘッダーが付くように）
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(",") if o.strip()],
